@@ -3,15 +3,6 @@ use crate::ifstructs::{ifreq, IfFlags};
 use libc;
 use std::os::unix::prelude::RawFd;
 
-// FLAGS
-
-// linux/include/uapi/linux/if_tun.h
-// pub const IFF_TUN: libc::c_short = libc::IFF_TUN as  libc::c_short;
-// pub const IFF_NO_PI: libc::c_short = libc::IFF_NO_PI as  libc::c_short;
-
-// linux/include/uapi/linux/if.h
-// pub const IFF_UP: libc::c_short = libc::IFF_UP as libc::c_short;
-
 mod ioctl {
     use crate::ifstructs::ifreq;
     use std::os::unix::prelude::RawFd;
@@ -43,6 +34,11 @@ mod ioctl {
 
     pub unsafe fn if_set_addr(fd: RawFd, data: *const ifreq) -> Result<i32, nix::errno::Errno> {
         let res = libc::ioctl(fd, libc::SIOCSIFADDR, data);
+        nix::errno::Errno::result(res)
+    }
+
+    pub unsafe fn if_set_netmask(fd: RawFd, data: *const ifreq) -> Result<i32, nix::errno::Errno> {
+        let res = libc::ioctl(fd, libc::SIOCSIFNETMASK, data);
         nix::errno::Errno::result(res)
     }
 }
@@ -87,10 +83,11 @@ pub fn if_set_flags(name: &str, flags: IfFlags) -> Result<(), nix::errno::Errno>
     Ok(())
 }
 
-pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr) -> Result<(), nix::errno::Errno> {
+pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr, netmask: &std::net::Ipv4Addr) -> Result<(), nix::errno::Errno> {
     let mut req = ifreq::from_name(name).unwrap();
+    let sock = get_dummy_socket()?;
 
-    let sai = libc::sockaddr_in {
+    let mut sai = libc::sockaddr_in {
         sin_family: libc::AF_INET as u16,
         sin_port: 0,
         sin_addr: libc::in_addr {
@@ -98,10 +95,17 @@ pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr) -> Result<(), nix::err
         },
         sin_zero: [0; 8]
     };
-    unsafe{
+    unsafe {
         req.set_addr(sai);
-        ioctl::if_set_addr(get_dummy_socket()?, &req)?;
+        ioctl::if_set_addr(sock, &req)?;
     }
+
+    sai.sin_addr.s_addr = u32::from_be_bytes(netmask.octets()).to_be();
+    unsafe {
+        req.set_addr(sai);
+        ioctl::if_set_netmask(sock, &req)?;
+    }
+
 
     Ok(())
 }
