@@ -1,19 +1,19 @@
 use nix;
-use ifstructs::ifreq;
+use crate::ifstructs::{ifreq, IfFlags};
 use libc;
 use std::os::unix::prelude::RawFd;
 
 // FLAGS
 
 // linux/include/uapi/linux/if_tun.h
-pub const IFF_TUN: libc::c_short = libc::IFF_TUN as  libc::c_short;
-pub const IFF_NO_PI: libc::c_short = libc::IFF_NO_PI as  libc::c_short;
+// pub const IFF_TUN: libc::c_short = libc::IFF_TUN as  libc::c_short;
+// pub const IFF_NO_PI: libc::c_short = libc::IFF_NO_PI as  libc::c_short;
 
 // linux/include/uapi/linux/if.h
-pub const IFF_UP: libc::c_short = libc::IFF_UP as libc::c_short;
+// pub const IFF_UP: libc::c_short = libc::IFF_UP as libc::c_short;
 
-mod ioctl{
-    use ifstructs::ifreq;
+mod ioctl {
+    use crate::ifstructs::ifreq;
     use std::os::unix::prelude::RawFd;
 
     // linux/include/uapi/linux/if_tun.h
@@ -40,44 +40,68 @@ mod ioctl{
         let res = libc::ioctl(fd, libc::SIOCSIFFLAGS, data);
         nix::errno::Errno::result(res)
     }
+
+    pub unsafe fn if_set_addr(fd: RawFd, data: *const ifreq) -> Result<i32, nix::errno::Errno> {
+        let res = libc::ioctl(fd, libc::SIOCSIFADDR, data);
+        nix::errno::Errno::result(res)
+    }
 }
 
 fn get_dummy_socket() -> Result<RawFd, nix::errno::Errno> {
     use nix::sys::socket::*;
-    socket(
-        AddressFamily::Inet, SockType::Datagram, 
-        SockFlag::empty(), None)
+    socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(), None)
 }
 
-pub fn tun_create(name: &str, flags: libc::c_short) -> Result<RawFd, nix::errno::Errno> {
+pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno> {
     let fd: RawFd = nix::fcntl::open("/dev/net/tun", nix::fcntl::OFlag::O_RDWR, nix::sys::stat::Mode::empty())?;
 
     let mut req = ifreq::from_name(name).unwrap();
-    req.set_flags(flags);
     let persist = true;
 
     unsafe{
+        req.set_flags(flags);
         ioctl::tun_set_iff(fd, &req)?;
         ioctl::tun_set_persist(fd, &persist)?;
     }
     Ok(fd)
 }
 
-pub fn if_get_flags(name: &str) -> Result<libc::c_short, nix::errno::Errno> {
+pub fn if_get_flags(name: &str) -> Result<IfFlags, nix::errno::Errno> {
     let req = ifreq::from_name(name).unwrap();
+    let flags: IfFlags;
 
     unsafe{
         ioctl::if_get_flags(get_dummy_socket()?, &req)?;
+        flags = req.get_flags();
     }
-    Ok(req.get_flags())
+    Ok(flags)
 }
 
-pub fn if_set_flags(name: &str, flags: libc::c_short) -> Result<(), nix::errno::Errno> {
+pub fn if_set_flags(name: &str, flags: IfFlags) -> Result<(), nix::errno::Errno> {
     let mut req = ifreq::from_name(name).unwrap();
-    req.set_flags(flags);
 
     unsafe{
+        req.set_flags(flags);
         ioctl::if_set_flags(get_dummy_socket()?, &req)?;
     }
+    Ok(())
+}
+
+pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr) -> Result<(), nix::errno::Errno> {
+    let mut req = ifreq::from_name(name).unwrap();
+
+    let sai = libc::sockaddr_in {
+        sin_family: libc::AF_INET as u16,
+        sin_port: 0,
+        sin_addr: libc::in_addr {
+            s_addr: u32::from_be_bytes(addr.octets()).to_be()
+        },
+        sin_zero: [0; 8]
+    };
+    unsafe{
+        req.set_addr(sai);
+        ioctl::if_set_addr(get_dummy_socket()?, &req)?;
+    }
+
     Ok(())
 }
