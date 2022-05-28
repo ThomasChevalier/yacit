@@ -32,6 +32,11 @@ mod ioctl {
         nix::errno::Errno::result(res)
     }
 
+    pub unsafe fn if_set_mtu(fd: RawFd, data: *const ifreq) -> Result<i32, nix::errno::Errno> {
+        let res = libc::ioctl(fd, libc::SIOCSIFMTU, data);
+        nix::errno::Errno::result(res)
+    }
+
     pub unsafe fn if_set_addr(fd: RawFd, data: *const ifreq) -> Result<i32, nix::errno::Errno> {
         let res = libc::ioctl(fd, libc::SIOCSIFADDR, data);
         nix::errno::Errno::result(res)
@@ -50,7 +55,6 @@ fn get_dummy_socket() -> Result<RawFd, nix::errno::Errno> {
 
 pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno> {
     let fd: RawFd = nix::fcntl::open("/dev/net/tun", nix::fcntl::OFlag::O_RDWR, nix::sys::stat::Mode::empty())?;
-
     let mut req = ifreq::from_name(name).unwrap();
     let persist = true;
 
@@ -83,6 +87,16 @@ pub fn if_set_flags(name: &str, flags: IfFlags) -> Result<(), nix::errno::Errno>
     Ok(())
 }
 
+pub fn if_set_mtu(name: &str, mtu: libc::c_int) -> Result<(), nix::errno::Errno> {
+    let mut req = ifreq::from_name(name).unwrap();
+
+    unsafe{
+        req.ifr_ifru.ifr_mtu = mtu;
+        ioctl::if_set_mtu(get_dummy_socket()?, &req)?;
+    }
+    Ok(())
+}
+
 pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr, netmask: &std::net::Ipv4Addr) -> Result<(), nix::errno::Errno> {
     let mut req = ifreq::from_name(name).unwrap();
     let sock = get_dummy_socket()?;
@@ -105,7 +119,6 @@ pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr, netmask: &std::net::Ip
         req.set_addr(sai);
         ioctl::if_set_netmask(sock, &req)?;
     }
-
 
     Ok(())
 }
