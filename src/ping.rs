@@ -19,7 +19,7 @@ pub fn create_socket_client(address: Ipv4Addr) -> Result<Socket, String>{
 
 
 pub struct IcmpV4 {
-    payload : Vec<u8>,
+    pub payload : Vec<u8>,
     type_ : IcmpType,
     code : u8,
 }
@@ -46,7 +46,6 @@ impl IcmpV4 {
 
 	pub fn recv_ping(soc : &Socket) -> IcmpV4 {
 		let mut tmp : [MaybeUninit<u8>;1000] = [MaybeUninit::<u8>::uninit();1000];
-		
 		let size = soc.recv(&mut tmp).unwrap();
 
 		let mut data = Vec::new();

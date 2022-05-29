@@ -21,7 +21,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
 
     loop{
         println!("Waiting for some data to read");
-        let total_ready = poll(&mut poll_fd, -1)
+        poll(&mut poll_fd, -1)
             .map_err(|err| format!("poll returned an error: {}", err))?;
 
         let tun_flags = poll_fd[0].revents()
@@ -31,7 +31,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
             println!("Data ready to be read from tun_fd");
 
             let read = nix::unistd::read(tun_fd, buffer.as_mut_slice())
-                .map_err(|err| format!("read error: {err}"))?;
+                .map_err(|err| format!("read error: {}", err))?;
 
             let mut payload = buffer.clone();
             payload.truncate(read);
@@ -50,8 +50,10 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
 
             let icmp_res = ping::IcmpV4::recv_ping(&soc);
 	        println!("{}",icmp_res.to_string());
-            // let read = nix::unistd::read(tun_fd, buffer.as_mut_slice()).expect("read error");
-            // println!("{:02X?}", buffer);
+
+            println!("Sending it to tun interface");
+            nix::unistd::write(tun_fd, icmp_res.payload.as_slice())
+                .map_err(|err| format!("write error {}", err))?;
         }
     }
 }
