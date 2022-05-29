@@ -28,7 +28,7 @@ fn ipv4_valid(s: &str) -> Result<Ipv4Addr, String> {
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 #[clap(group(
-    ArgGroup::new("type")
+    ArgGroup::new("client-or-server")
         .required(true)
         .args(&["server", "remote-ip"]),
 ))]
