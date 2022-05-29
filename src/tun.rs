@@ -2,6 +2,7 @@ use nix;
 use crate::ifstructs::{ifreq, IfFlags};
 use libc;
 use std::os::unix::prelude::RawFd;
+use std::net::Ipv4Addr;
 
 mod ioctl {
     use crate::ifstructs::ifreq;
@@ -121,4 +122,37 @@ pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr, netmask: &std::net::Ip
     }
 
     Ok(())
+}
+
+fn errno_to_str(err: nix::errno::Errno, msg: String) -> String {
+    use nix::errno::Errno;
+
+    let err_str = match err {
+        Errno::EPERM => format!("Operation not permitted (EPERM). Try to use sudo"),
+        _ => format!("{}", err)
+    };
+
+    format!("{}: {}", msg, err_str)
+}
+
+pub fn create_tun_interface(name: String, addr: Ipv4Addr, mask: Ipv4Addr, mtu: i32) -> Result<RawFd, String> {
+
+
+    let iname = name.as_str();
+    let tun_fd = tun_create(iname, IfFlags::IFF_TUN | IfFlags::IFF_NO_PI)
+        .map_err(|err| errno_to_str(err, format!("Cannot create interface {}", iname)))?;
+
+    let flags = if_get_flags(iname)
+        .map_err(|err| errno_to_str(err, format!("Cannot get flags of {}", iname)))?;
+
+    if_set_flags(iname, flags | IfFlags::IFF_UP)
+        .map_err(|err| errno_to_str(err, format!("Cannot set flags of {}", iname)))?;
+
+    if_set_mtu(iname, mtu)
+        .map_err(|err| errno_to_str(err, format!("Cannot set a MTU of {} to {}", mtu, iname)))?;
+
+    if_set_addr(iname, &addr, &mask)
+        .map_err(|err| errno_to_str(err, format!("Cannot set address {} - {} to {}", addr, mask, iname)))?;
+
+    Ok(tun_fd)
 }

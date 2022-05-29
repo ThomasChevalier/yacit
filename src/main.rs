@@ -5,10 +5,8 @@ mod args;
 use std::{str::FromStr, os::unix::prelude::AsRawFd};
 use nix::sys::select::{FdSet, select};
 
-use crate::ifstructs::IfFlags;
-use crate::tun::*;
-
 use socket2::{Domain, Protocol, Socket, Type, SockAddr};
+use tun::create_tun_interface;
 use std::net::{SocketAddr, IpAddr};
 
 use clap::Parser;
@@ -16,20 +14,6 @@ use clap::Parser;
 
 const MTU: i32 = 1400;
 
-fn configure_interface() -> i32 {
-    let tun_fd = tun_create("tun0", IfFlags::IFF_TUN | IfFlags::IFF_NO_PI).expect("Cannot create interface tun0");
-
-    let flags = if_get_flags("tun0").expect("Cannot get flags of tun0");
-    if_set_flags("tun0", flags | IfFlags::IFF_UP).expect("Cannot set flags of tun0");
-
-    if_set_mtu("tun0", MTU).expect("Cannot set MTU of tun0");
-
-    let addr = std::net::Ipv4Addr::from_str("10.1.0.1").expect("Cannot parse ip address");
-    let mask = std::net::Ipv4Addr::from_str("255.255.0.0").expect("Cannot parse netmask");
-    if_set_addr("tun0", &addr, &mask).expect("Cannot set interface ip address");
-
-    tun_fd
-}
 
 fn read_data(tun_fd: i32) {
 
@@ -74,9 +58,18 @@ fn read_data(tun_fd: i32) {
     }
 }
 
-fn main() {
+fn try_main() -> Result<(), String> {
     let args = args::Args::parse();
 
-    let tun_fd = configure_interface();
+    let tun_fd = create_tun_interface(args.iface_name, args.internal_ip, args.internal_netmask, args.mtu)?;
     read_data(tun_fd);
+
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = try_main() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1)
+    }
 }
