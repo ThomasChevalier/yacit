@@ -4,6 +4,21 @@ use libc;
 use std::os::unix::prelude::RawFd;
 use std::net::Ipv4Addr;
 
+mod dummy {
+    use std::os::unix::prelude::RawFd;
+    static mut DUMMY_SOCKET: RawFd = -1;
+
+    pub fn get_socket() -> Result<RawFd, nix::errno::Errno> {
+        use nix::sys::socket::*;
+        unsafe {
+            if DUMMY_SOCKET < 0 {
+                DUMMY_SOCKET = socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(), None)?;
+            }
+            Ok(DUMMY_SOCKET)
+        }
+    }
+}
+
 mod ioctl {
     use crate::ifstructs::ifreq;
     use std::os::unix::prelude::RawFd;
@@ -49,10 +64,7 @@ mod ioctl {
     }
 }
 
-fn get_dummy_socket() -> Result<RawFd, nix::errno::Errno> {
-    use nix::sys::socket::*;
-    socket(AddressFamily::Inet, SockType::Datagram, SockFlag::empty(), None)
-}
+
 
 pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno> {
     let fd: RawFd = nix::fcntl::open("/dev/net/tun", nix::fcntl::OFlag::O_RDWR, nix::sys::stat::Mode::empty())?;
@@ -72,7 +84,7 @@ pub fn if_get_flags(name: &str) -> Result<IfFlags, nix::errno::Errno> {
     let flags: IfFlags;
 
     unsafe{
-        ioctl::if_get_flags(get_dummy_socket()?, &req)?;
+        ioctl::if_get_flags(dummy::get_socket()?, &req)?;
         flags = req.get_flags();
     }
     Ok(flags)
@@ -83,7 +95,7 @@ pub fn if_set_flags(name: &str, flags: IfFlags) -> Result<(), nix::errno::Errno>
 
     unsafe{
         req.set_flags(flags);
-        ioctl::if_set_flags(get_dummy_socket()?, &req)?;
+        ioctl::if_set_flags(dummy::get_socket()?, &req)?;
     }
     Ok(())
 }
@@ -93,14 +105,14 @@ pub fn if_set_mtu(name: &str, mtu: libc::c_int) -> Result<(), nix::errno::Errno>
 
     unsafe{
         req.ifr_ifru.ifr_mtu = mtu;
-        ioctl::if_set_mtu(get_dummy_socket()?, &req)?;
+        ioctl::if_set_mtu(dummy::get_socket()?, &req)?;
     }
     Ok(())
 }
 
 pub fn if_set_addr(name: &str, addr: &std::net::Ipv4Addr, netmask: &std::net::Ipv4Addr) -> Result<(), nix::errno::Errno> {
     let mut req = ifreq::from_name(name).unwrap();
-    let sock = get_dummy_socket()?;
+    let sock = dummy::get_socket()?;
 
     let mut sai = libc::sockaddr_in {
         sin_family: libc::AF_INET as u16,
