@@ -11,6 +11,9 @@ use crate::tun::*;
 use socket2::{Domain, Protocol, Socket, Type, SockAddr};
 use std::net::{SocketAddr, IpAddr};
 
+use clap::Parser;
+
+
 const MTU: i32 = 1400;
 
 fn configure_interface() -> i32 {
@@ -72,6 +75,8 @@ fn read_data(tun_fd: i32) {
 }
 
 fn main() {
+    let args = args::Args::parse();
+
     let tun_fd = configure_interface();
     read_data(tun_fd);
 }
