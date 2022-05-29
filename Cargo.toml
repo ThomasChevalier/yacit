@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 nix = "0.24.1"
 libc = "0.2.126"
+socket2 = { version = "0.4.4", features = ["all"] }
