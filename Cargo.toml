@@ -13,3 +13,4 @@ libc = "0.2.126"
 socket2 = { version = "0.4.4", features = ["all"] }
 clap = { version ="3.1.18", features = ["derive"] }
 pnet = "0.30.0"
+neli = "0.6.1"
