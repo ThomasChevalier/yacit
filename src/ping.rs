@@ -17,6 +17,13 @@ pub fn create_socket_client(address: Ipv4Addr) -> Result<Socket, String>{
 	Ok(s)
 }
 
+pub fn create_socket_server() -> Result<Socket, String>{
+	let s  = create_socket();
+	let addr = SockAddr::from(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0));
+	s.bind(&addr).map_err(|e| format!("Cannot bind socket to 0.0.0.0: {}", e))?;
+	Ok(s)
+}
+
 
 pub struct IcmpV4 {
     pub payload : Vec<u8>,
@@ -44,9 +51,9 @@ impl IcmpV4 {
 		Ok(())
 	}
 
-	pub fn recv_ping(soc : &Socket) -> IcmpV4 {
+	pub fn recv_ping(soc : &Socket) -> (IcmpV4,SockAddr) {
 		let mut tmp : [MaybeUninit<u8>;1000] = [MaybeUninit::<u8>::uninit();1000];
-		let size = soc.recv(&mut tmp).unwrap();
+		let (size,addr_rcv) = soc.recv_from(&mut tmp).unwrap();
 
 		let mut data = Vec::new();
 		
@@ -54,7 +61,7 @@ impl IcmpV4 {
     		data.push(unsafe { tmp[i].assume_init()})
 		}
 		println!("{:?}",data);
-		return IcmpV4::parse_icmp(data);
+		return (IcmpV4::parse_icmp(data),addr_rcv);
 	}
 
 	fn parse_icmp(mut data : Vec<u8>) -> IcmpV4 {
