@@ -1,6 +1,5 @@
 use socket2::{Domain, Protocol, Socket, Type, SockAddr};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::str::FromStr;
 use std::mem::MaybeUninit;
 
 use pnet::util::checksum;
@@ -11,12 +10,11 @@ fn create_socket() -> Socket{
 	return s;
 }
 
-pub fn create_socket_client(address : &str) -> Socket{
+pub fn create_socket_client(address: Ipv4Addr) -> Result<Socket, String>{
 	let s  = create_socket();
-	let ip = IpAddr::V4(Ipv4Addr::from_str(address).unwrap());
-	let addr = &SockAddr::from(SocketAddr::new(ip, 0));
-	s.connect(addr);
-	return s;
+	let addr = SockAddr::from(SocketAddr::new(IpAddr::V4(address), 0));
+	s.connect(&addr).map_err(|e| format!("Cannot connect socket to {}: {}", address, e))?;
+	Ok(s)
 }
 
 
@@ -34,7 +32,7 @@ impl IcmpV4 {
 		return icmp;
 	}
 
-	pub fn send_ping(&self, soc : &Socket) -> bool {
+	pub fn send_ping(&self, soc : &Socket) -> Result<(), String> {
 		let mut paquet = vec![self.type_.to_byte(), self.code,0,0,0,0,0,0];
 		paquet.extend(&self.payload);
 
@@ -42,9 +40,8 @@ impl IcmpV4 {
 		paquet[2] = u1;
 		paquet[3] = u2;
 		
-		soc.send(&paquet);
-		
-		return true;
+		soc.send(&paquet).map_err(|err| format!("send_ping error: {}", err))?;
+		Ok(())
 	}
 
 	pub fn recv_ping(soc : &Socket) -> IcmpV4 {
