@@ -120,7 +120,7 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
             let icmp_packet = ping::IcmpV4::create_icmp(ping::IcmpType::EchoRequest, 0, payload);
             match &client_sock {
                 Some(s) => icmp_packet.send_ping(s)?,
-                None => return Err("Cannot send data to client without initial connection".to_string())
+                None => println!("Cannot send data to client without initial connection")
             }
         }
     }
