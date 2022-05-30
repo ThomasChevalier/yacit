@@ -15,7 +15,7 @@ fn try_main() -> Result<(), String> {
 
 
     if args.server {
-        // tunnel::start_server()?;
+        tunnel::start_server(tun_fd, args.mtu)?;
     } else {
         let remote = args.remote_ip.ok_or_else(|| format!("No remote ip but one expected"))?;
 
