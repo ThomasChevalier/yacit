@@ -61,7 +61,6 @@ impl IcmpV4 {
 		for i in 0..size {
     		data.push(unsafe { buffer[i].assume_init()})
 		}
-		println!("{:?}",data);
 		return (IcmpV4::parse_icmp(data),addr_rcv);
 	}
 

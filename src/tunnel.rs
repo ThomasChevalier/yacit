@@ -21,7 +21,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
         ];
 
     loop{
-        println!("Waiting for some data to read");
+        println!("Waiting for data");
         poll(&mut poll_fd, -1)
             .map_err(|err| format!("poll returned an error: {}", err))?;
 
@@ -29,16 +29,14 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
             .ok_or_else(|| format!("Kernel provided unknown status flag for poll revents"))?;
 
         if !(tun_flags & PollFlags::POLLIN).is_empty(){
-            println!("Data ready to be read from tun_fd");
-
             let read = nix::unistd::read(tun_fd, buffer.as_mut_slice())
-                .map_err(|err| format!("read error: {}", err))?;
+                .map_err(|err| format!("[tun] read error: {}", err))?;
 
             let mut payload = buffer.clone();
             payload.truncate(read);
 
-            println!("{:02X?}", payload);
-            println!("Sending it via icmp");
+            println!("[tun] Read {} bytes", payload.len());
+            println!("[tun] Sending ICMP packet");
             let icmp_packet = ping::IcmpV4::create_icmp(ping::IcmpType::EchoRequest, 0, payload);
             icmp_packet.send_ping(&client_sock)?;
         }
@@ -48,13 +46,11 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
             .ok_or_else(|| format!("Kernel provided unknown status flag for poll revents"))?;
 
         if !(icmp_flags & PollFlags::POLLIN).is_empty(){
-            println!("Data ready to be read from icmp_fd");
-
             let (icmp_res, _) = ping::IcmpV4::recv_ping(&soc, mtu);
-            println!("{}",icmp_res.to_string());
+            println!("[icmp] Read payload of {} bytes",icmp_res.payload.len());
 
             if icmp_res.is_request() {
-                println!("Sending it to tun interface");
+                println!("[icmp] Sending it to tun interface");
                 nix::unistd::write(tun_fd, icmp_res.payload.as_slice())
                     .map_err(|err| format!("write error {}", err))?;
             }
@@ -78,7 +74,7 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
         ];
 
     loop {
-        println!("Waiting for some data to read");
+        println!("---");
         poll(&mut poll_fd, -1)
             .map_err(|err| format!("poll returned an error: {}", err))?;
 
@@ -88,10 +84,9 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
             .ok_or_else(|| format!("Kernel provided unknown status flag for poll revents"))?;
 
         if !(icmp_flags & PollFlags::POLLIN).is_empty(){
-            println!("Data ready to be read from icmp_fd");
 
             let (icmp_res, client_addr) = ping::IcmpV4::recv_ping(&soc, mtu);
-            println!("{}",icmp_res.to_string());
+            println!("[icmp] Read payload of {} bytes",icmp_res.payload.len());
 
             if icmp_res.is_request() {
                 if client_sock.is_none() {
@@ -99,10 +94,10 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
                         .ok_or_else(|| format!("Cannot cast socket to ipv4"))?;
                     
                     client_sock = Some(ping::create_socket_client(*sock_v4.ip())?);
-                    println!("Created client socket (ip: {})", sock_v4.ip());
+                    println!("[icmp] Created client socket (ip: {})", sock_v4.ip());
                 }
     
-                println!("Sending it to tun interface");
+                println!("[icmp] Sending it to tun interface");
                 nix::unistd::write(tun_fd, icmp_res.payload.as_slice())
                     .map_err(|err| format!("write error {}", err))?;
             }
@@ -113,17 +108,15 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
             .ok_or_else(|| format!("Kernel provided unknown status flag for poll revents"))?;
 
         if !(tun_flags & PollFlags::POLLIN).is_empty(){
-            println!("Data ready to be read from tun_fd");
-
             let read = nix::unistd::read(tun_fd, buffer.as_mut_slice())
-                .map_err(|err| format!("read error: {}", err))?;
+                .map_err(|err| format!("[tun] read error: {}", err))?;
 
             let mut payload = buffer.clone();
             payload.truncate(read);
 
-            println!("{:02X?}", payload);
-            println!("Sending it via icmp");
-            
+            println!("[tun] Read {} bytes", payload.len());
+            println!("[tun] Sending ICMP packet");
+
             let icmp_packet = ping::IcmpV4::create_icmp(ping::IcmpType::EchoRequest, 0, payload);
             match &client_sock {
                 Some(s) => icmp_packet.send_ping(s)?,
