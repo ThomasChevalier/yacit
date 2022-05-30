@@ -71,6 +71,13 @@ impl IcmpV4 {
 		return IcmpV4::create_icmp(type_,code,payload);
 
 	}
+
+	pub fn is_request(&self) -> bool {
+		match self.type_ {
+			IcmpType::EchoRequest => true,
+			_ => false
+		}
+	}
 }
 impl ToString for IcmpV4{
 
