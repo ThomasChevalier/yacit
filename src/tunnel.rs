@@ -15,8 +15,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
     let mut buffer: Vec<u8> = vec![0; mtu as usize];
 
     let mut poll_fd = [
-        PollFd::new(tun_fd, PollFlags::POLLIN),
-        PollFd::new(icmp_fd, PollFlags::POLLIN)
+        PollFd::new(tun_fd, PollFlags::POLLIN)
         ];
 
     loop{
