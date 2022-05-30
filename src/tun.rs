@@ -76,6 +76,7 @@ pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno
         ioctl::tun_set_iff(fd, &req)?;
         ioctl::tun_set_persist(fd, &persist)?;
     }
+    nix::unistd::close(fd)?;
     Ok(fd)
 }
 
@@ -147,7 +148,7 @@ fn errno_to_str(err: nix::errno::Errno, msg: String) -> String {
     format!("{}: {}", msg, err_str)
 }
 
-pub fn create_tun_interface(name: String, addr: Ipv4Addr, mask: Ipv4Addr, mtu: i32) -> Result<RawFd, String> {
+pub fn create_tun_interface(name: &String, addr: Ipv4Addr, mask: Ipv4Addr, mtu: i32) -> Result<RawFd, String> {
 
 
     let iname = name.as_str();
