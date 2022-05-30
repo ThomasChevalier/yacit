@@ -21,7 +21,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
         ];
 
     loop{
-        println!("Waiting for data");
+        println!("---");
         poll(&mut poll_fd, -1)
             .map_err(|err| format!("poll returned an error: {}", err))?;
 
