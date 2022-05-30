@@ -69,14 +69,13 @@ mod ioctl {
 pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno> {
     let fd: RawFd = nix::fcntl::open("/dev/net/tun", nix::fcntl::OFlag::O_RDWR, nix::sys::stat::Mode::empty())?;
     let mut req = ifreq::from_name(name).unwrap();
-    let persist = true;
+    // let persist = true;
 
     unsafe{
         req.set_flags(flags);
         ioctl::tun_set_iff(fd, &req)?;
-        ioctl::tun_set_persist(fd, &persist)?;
+        // ioctl::tun_set_persist(fd, &persist)?;
     }
-    nix::unistd::close(fd)?;
     Ok(fd)
 }
 
