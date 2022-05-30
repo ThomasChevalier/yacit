@@ -29,7 +29,7 @@ nft 'flush ruleset
 ## Coté client
 
 ```sh
-sudo ./target/debug/yacit --remote_ip 192.168.43.238 --mtu 1500
+sudo ./target/debug/yacit --remote-ip 192.168.43.238 --mtu 1500 --out-iface-name <NOM INTERFACE PHYSIQUE>
 ```
 
 ```sh
