@@ -51,14 +51,15 @@ impl IcmpV4 {
 		Ok(())
 	}
 
-	pub fn recv_ping(soc : &Socket) -> (IcmpV4,SockAddr) {
-		let mut tmp : [MaybeUninit<u8>;1000] = [MaybeUninit::<u8>::uninit();1000];
-		let (size,addr_rcv) = soc.recv_from(&mut tmp).unwrap();
+	pub fn recv_ping(soc : &Socket, mtu: i32) -> (IcmpV4,SockAddr) {
+		let mut buffer: Vec<MaybeUninit<u8>> = vec![MaybeUninit::<u8>::uninit(); mtu as usize];
+		
+		let (size,addr_rcv) = soc.recv_from(buffer.as_mut_slice()).unwrap();
 
 		let mut data = Vec::new();
 		
 		for i in 0..size {
-    		data.push(unsafe { tmp[i].assume_init()})
+    		data.push(unsafe { buffer[i].assume_init()})
 		}
 		println!("{:?}",data);
 		return (IcmpV4::parse_icmp(data),addr_rcv);

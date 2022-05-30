@@ -50,7 +50,7 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
         if !(icmp_flags & PollFlags::POLLIN).is_empty(){
             println!("Data ready to be read from icmp_fd");
 
-            let (icmp_res, _) = ping::IcmpV4::recv_ping(&soc);
+            let (icmp_res, _) = ping::IcmpV4::recv_ping(&soc, mtu);
             println!("{}",icmp_res.to_string());
 
             if icmp_res.is_request() {
@@ -90,7 +90,7 @@ pub fn start_server(tun_fd: RawFd, mtu: i32) -> Result<(), String>
         if !(icmp_flags & PollFlags::POLLIN).is_empty(){
             println!("Data ready to be read from icmp_fd");
 
-            let (icmp_res, client_addr) = ping::IcmpV4::recv_ping(&soc);
+            let (icmp_res, client_addr) = ping::IcmpV4::recv_ping(&soc, mtu);
             println!("{}",icmp_res.to_string());
 
             if icmp_res.is_request() {
