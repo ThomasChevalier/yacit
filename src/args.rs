@@ -41,8 +41,12 @@ pub struct Args {
     #[clap(short='n', long, default_value_t = String::from("yacit0"), parse(try_from_str=iface_valid))]
     pub iface_name: String,
 
+    /// Name of the network interface from where the VPN traffic should exit
+    #[clap(short, long, parse(try_from_str=iface_valid))]
+    pub out_iface_name: Option<String>,
+
     /// IP address of the yacit server
-    #[clap(short, long, parse(try_from_str=ipv4_valid))]
+    #[clap(short, long, parse(try_from_str=ipv4_valid), requires="out-iface-name")]
     pub remote_ip: Option<Ipv4Addr>,
 
     /// Internal IP address for the interface

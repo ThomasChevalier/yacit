@@ -76,6 +76,7 @@ pub fn tun_create(name: &str, flags: IfFlags) -> Result<RawFd, nix::errno::Errno
         ioctl::tun_set_iff(fd, &req)?;
         ioctl::tun_set_persist(fd, &persist)?;
     }
+    nix::unistd::close(fd)?;
     Ok(fd)
 }
 
