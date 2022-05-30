@@ -7,15 +7,17 @@ use super::ping;
 
 pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), String>
 {
-    let soc = ping::create_socket_client(remote_ip)?;
+    let client_sock = ping::create_socket_client(remote_ip)?;
     println!("Icmp socket to {} created", remote_ip);
 
+    let soc = ping::create_socket_server()?;
     let icmp_fd: RawFd = soc.as_raw_fd();
 
     let mut buffer: Vec<u8> = vec![0; mtu as usize];
 
     let mut poll_fd = [
-        PollFd::new(tun_fd, PollFlags::POLLIN)
+        PollFd::new(tun_fd, PollFlags::POLLIN),
+        PollFd::new(icmp_fd, PollFlags::POLLIN)
         ];
 
     loop{
@@ -38,7 +40,24 @@ pub fn start_client(tun_fd: RawFd, mtu: i32, remote_ip: Ipv4Addr) -> Result<(), 
             println!("{:02X?}", payload);
             println!("Sending it via icmp");
             let icmp_packet = ping::IcmpV4::create_icmp(ping::IcmpType::EchoRequest, 0, payload);
-            icmp_packet.send_ping(&soc)?;
+            icmp_packet.send_ping(&client_sock)?;
+        }
+
+        // Reception des pings du serveur
+        let icmp_flags = poll_fd[1].revents()
+            .ok_or_else(|| format!("Kernel provided unknown status flag for poll revents"))?;
+
+        if !(icmp_flags & PollFlags::POLLIN).is_empty(){
+            println!("Data ready to be read from icmp_fd");
+
+            let (icmp_res, _) = ping::IcmpV4::recv_ping(&soc);
+            println!("{}",icmp_res.to_string());
+
+            if icmp_res.is_request() {
+                println!("Sending it to tun interface");
+                nix::unistd::write(tun_fd, icmp_res.payload.as_slice())
+                    .map_err(|err| format!("write error {}", err))?;
+            }
         }
     }
 }
