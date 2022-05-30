@@ -1,6 +1,5 @@
 use socket2::{Domain, Protocol, Socket, Type, SockAddr};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::str::FromStr;
 use std::mem::MaybeUninit;
 
 use pnet::util::checksum;
@@ -11,17 +10,23 @@ fn create_socket() -> Socket{
 	return s;
 }
 
-pub fn create_socket_client(address : &str) -> Socket{
+pub fn create_socket_client(address: Ipv4Addr) -> Result<Socket, String>{
 	let s  = create_socket();
-	let ip = IpAddr::V4(Ipv4Addr::from_str(address).unwrap());
-	let addr = &SockAddr::from(SocketAddr::new(ip, 0));
-	s.connect(addr);
-	return s;
+	let addr = SockAddr::from(SocketAddr::new(IpAddr::V4(address), 0));
+	s.connect(&addr).map_err(|e| format!("Cannot connect socket to {}: {}", address, e))?;
+	Ok(s)
+}
+
+pub fn create_socket_server() -> Result<Socket, String>{
+	let s  = create_socket();
+	let addr = SockAddr::from(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0));
+	s.bind(&addr).map_err(|e| format!("Cannot bind socket to 0.0.0.0: {}", e))?;
+	Ok(s)
 }
 
 
 pub struct IcmpV4 {
-    payload : Vec<u8>,
+    pub payload : Vec<u8>,
     type_ : IcmpType,
     code : u8,
 }
@@ -34,7 +39,7 @@ impl IcmpV4 {
 		return icmp;
 	}
 
-	pub fn send_ping(&self, soc : &Socket) -> bool {
+	pub fn send_ping(&self, soc : &Socket) -> Result<(), String> {
 		let mut paquet = vec![self.type_.to_byte(), self.code,0,0,0,0,0,0];
 		paquet.extend(&self.payload);
 
@@ -42,23 +47,21 @@ impl IcmpV4 {
 		paquet[2] = u1;
 		paquet[3] = u2;
 		
-		soc.send(&paquet);
-		
-		return true;
+		soc.send(&paquet).map_err(|err| format!("send_ping error: {}", err))?;
+		Ok(())
 	}
 
-	pub fn recv_ping(soc : &Socket) -> IcmpV4 {
-		let mut tmp : [MaybeUninit<u8>;1000] = [MaybeUninit::<u8>::uninit();1000];
+	pub fn recv_ping(soc : &Socket, mtu: i32) -> (IcmpV4,SockAddr) {
+		let mut buffer: Vec<MaybeUninit<u8>> = vec![MaybeUninit::<u8>::uninit(); mtu as usize];
 		
-		let size = soc.recv(&mut tmp).unwrap();
+		let (size,addr_rcv) = soc.recv_from(buffer.as_mut_slice()).unwrap();
 
 		let mut data = Vec::new();
 		
 		for i in 0..size {
-    		data.push(unsafe { tmp[i].assume_init()})
+    		data.push(unsafe { buffer[i].assume_init()})
 		}
-		println!("{:?}",data);
-		return IcmpV4::parse_icmp(data);
+		return (IcmpV4::parse_icmp(data),addr_rcv);
 	}
 
 	fn parse_icmp(mut data : Vec<u8>) -> IcmpV4 {
@@ -67,6 +70,13 @@ impl IcmpV4 {
 		let payload = data.split_off(28);
 		return IcmpV4::create_icmp(type_,code,payload);
 
+	}
+
+	pub fn is_request(&self) -> bool {
+		match self.type_ {
+			IcmpType::EchoRequest => true,
+			_ => false
+		}
 	}
 }
 impl ToString for IcmpV4{
