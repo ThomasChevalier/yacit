@@ -1,6 +1,26 @@
 # yacit
 Yet Another Crappy ICMP Tunnel
 
+# Installation
+
+```sh
+cargo build
+```
+
+# Lancement
+## Coté server
+
+```sh
+sudo ./target/debug/yacit --server --mtu 1500
+```
+
+## Coté client
+
+```sh
+sudo ./target/debug/yacit --remote_ip 192.168.43.238 --mtu 1500
+```
+
+
 
 # Raw socket
 
