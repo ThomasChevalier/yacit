@@ -1,5 +1,13 @@
-# yacit
-Yet Another Crappy ICMP Tunnel
+# yacit - Yet Another Crappy ICMP Tunnel
+
+yacit is a simple icmp tunnel that forwards all the traffic of the client to the server via ICMP Echo Request (aka ping).
+
+Goals of this project:
+* Gain experience with Rust
+* Try to configure everything via system calls, without the help of existing programs (such as iproute2)
+* Create a working prototype in a time-constrained context
+
+The logic for the VPN is largely inspired from [davlxd's excellent demo](https://github.com/davlxd/simple-vpn-demo).
 
 # Installation
 
@@ -7,12 +15,8 @@ Yet Another Crappy ICMP Tunnel
 cargo build
 ```
 
-# Lancement
-## Coté server
-
-```sh
-sudo ./target/debug/yacit --server --mtu 1500 --internal-ip 10.0.0.1
-```
+# Running
+## Server side
 
 ```sh
 nft 'flush ruleset
@@ -26,11 +30,12 @@ nft 'flush ruleset
         }
   }'
 ```
-## Coté client
 
 ```sh
-sudo ./target/debug/yacit --remote-ip 192.168.43.238 --mtu 1500 --out-iface-name <NOM INTERFACE PHYSIQUE>
+sudo ./target/debug/yacit --mtu 1500 --server --internal-ip 10.0.0.1
 ```
+
+## Client side
 
 ```sh
 nft 'flush ruleset
@@ -45,7 +50,6 @@ nft 'flush ruleset
   }'
 ```
 
-
-# Raw socket
-
-https://stackoverflow.com/questions/61350364/anything-better-than-resorting-to-libc-for-arbitrary-protocols-over-raw-sockets
+```sh
+sudo ./target/debug/yacit --mtu 1500 --remote-ip <SERVER IP> --out-iface-name <OUTPUT INTERFACE NAME>
+```
