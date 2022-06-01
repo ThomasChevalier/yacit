@@ -2,6 +2,8 @@
 
 yacit is a simple icmp tunnel that forwards all the traffic of the client to the server via ICMP Echo Request (aka ping).
 
+Made in collaboration with [@japius](https://github.com/japius/)
+
 Goals of this project:
 * Gain experience with Rust
 * Try to configure everything via system calls, without the help of existing programs (such as iproute2)
